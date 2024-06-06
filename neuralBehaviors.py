@@ -76,7 +76,7 @@ class LIFBehavior(Behavior):
     self.func_params = self.parameter('func_kwargs', None)
     self.dt = neurons.network.dt
     # init voltages
-    neurons.voltage = neurons.Urest + neurons.vector(f"normal(0, {1 + variation * 5})")
+    neurons.v = neurons.Urest + neurons.vector(f"normal(0, {1 + variation * 5})")
     neurons.Tref = neurons.vector('zeros')
     if self.adaptive:
       neurons.w = neurons.vector('zeros')
@@ -91,10 +91,10 @@ class LIFBehavior(Behavior):
   def forward(self, neurons:NeuronGroup):
     if not hasattr(neurons, 'I'):
       raise AttributeError("An input behavior must set neurons input (`I`) before calling LIF")
-    firing = neurons.voltage >= neurons.Uthresh
-    atPeak = neurons.voltage >= neurons.Upeak
+    firing = neurons.v >= neurons.Uthresh
+    atPeak = neurons.v >= neurons.Upeak
     neurons.spikes = atPeak.byte()
-    neurons.voltage[atPeak] = neurons.Ureset[atPeak] # reset
+    neurons.v[atPeak] = neurons.Ureset[atPeak] # reset
     neurons.Tref[atPeak] = self.Tref
     if self.adaptive:
       neurons.w[atPeak] += (self.b * self.dt)
@@ -105,20 +105,20 @@ class LIFBehavior(Behavior):
     du = self.R * neurons.I # get the input
     neurons.I = neurons.vector(0) # reset input
     if self.leak:
-      du[~firing] -= (neurons.voltage - neurons.Urest)[~firing] # leakage
+      du[~firing] -= (neurons.v - neurons.Urest)[~firing] # leakage
       
     if self.func == 'exp':
-      du += self.delta * torch.exp((neurons.voltage - neurons.Uthresh) / self.delta)
+      du += self.delta * torch.exp((neurons.v - neurons.Uthresh) / self.delta)
     if self.adaptive:
-      dw = self.a * (neurons.voltage - neurons.Urest) - neurons.w
+      dw = self.a * (neurons.v - neurons.Urest) - neurons.w
       dw = dw * self.dt / self.tau_w
       neurons.w += dw
       du[~firing] -= (self.R * neurons.w)[~firing]
 
     du = du * self.dt / self.tau_m
-    neurons.voltage[neurons.Tref == 0] += du[neurons.Tref == 0] # U increases for those who are not spiked recently
-    neurons.voltage = torch.clamp(neurons.voltage, max=neurons.Upeak, min=neurons.vector(-75)) # avoid super rapid growth
-    # neurons.voltage[neurons.Tref > 0] -= du[neurons.Tref > 0] # and decrease for rest of them?
+    neurons.v[neurons.Tref == 0] += du[neurons.Tref == 0] # U increases for those who are not spiked recently
+    neurons.v = torch.clamp(neurons.v, max=neurons.Upeak, min=neurons.vector(-75)) # avoid super rapid growth
+    # neurons.v[neurons.Tref > 0] -= du[neurons.Tref > 0] # and decrease for rest of them?
     neurons.Tref = torch.clamp(neurons.Tref - 1, min=0)
     
     
@@ -146,6 +146,11 @@ class InputBehavior(Behavior):
     deltai = self.func(neurons.network.iteration, neurons.size, **self.func_args)
     neurons.I += deltai
 
+class ResetIBehavior(Behavior):
+  def forward(self, neurons:NeuronGroup):
+    neurons.I = neurons.vector(0)
+
+    
 class ImageInput:
   def __init__(self, images:list, N:int, intersection:float, encoding:Literal['poisson', 'positional', 'TTFS']='poisson', time:int=10, sleep:int=10, amp:int=10, fix_image:bool=False) -> None:
     """
@@ -167,7 +172,7 @@ class ImageInput:
       the duration of sleep
     """
     self.images = images
-    encodings:dict[str, AbstractEncoder] = {'poisson': PoissonEncoder, 'positional': PositionalEncoder, 'TTFS': TTFSEncoder}
+    encodings = {'poisson': PoissonEncoder, 'positional': PositionalEncoder, 'TTFS': TTFSEncoder}
     n_inter = int(N * intersection) # the number of intersected neurons
     n_sep = (N - n_inter) // len(images) # the number of separate neurons
     self.encoder:AbstractEncoder = encodings[encoding](neurons_count=n_inter + n_sep, time=time)
