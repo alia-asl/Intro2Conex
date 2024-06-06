@@ -81,6 +81,7 @@ class LIFBehavior(Behavior):
     if self.adaptive:
       neurons.w = neurons.vector('zeros')
     self.func_params_handle()
+    neurons.spikes = neurons.vector(0)
 
   def func_params_handle(self):
     for key in self.DEFAULTS[self.func].keys():
@@ -210,9 +211,22 @@ class ImageInput:
 
 
 class LateralInhibition(Behavior):
-  def __init__(self):
-    pass
-  
+  def __init__(self, alpha=1):
+    """
+    Parameters:
+    -----
+    `alpha`: number
+    The inhibition effect
+    """
+    super().__init__(alpha=alpha)
+  def initialize(self, neurons:NeuronGroup):
+    self.alpha = self.parameter("alpha", None)
+    return super().initialize(neurons)
+  def forward(self, neurons:NeuronGroup):
+    anti_spikes = neurons.spikes.type(torch.uint8) - 1
+    neurons.I += anti_spikes * self.alpha
+    return super().forward(neurons)
+
 
     
     
