@@ -50,7 +50,7 @@ def sin_input(t, dim, step=1/6, amp=20, noise=False, noise_mean=0, noise_std=1):
     ans += noise_input(t, dim, noise_mean, noise_std)
   return ans
 
-class random_pattern:
+class RandomPattern:
     def __init__(self, size=None, pattern1=None, pattern2=None, period=1):
         if pattern1 == None and pattern2 == None:
             if size == None:
@@ -73,7 +73,6 @@ class random_pattern:
         patInd = (index // self.period) % 2
         if index == 0:
             print()
-        print(end=f"{index}")
         return self.pats[patInd].squeeze(), patInd
     def __call__(self, t, dim) -> torch.Tensor:
        return self.__getitem__(t)[0]
