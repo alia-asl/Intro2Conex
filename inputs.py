@@ -53,13 +53,14 @@ def sin_input(t, dim, step=1/6, amp=20, noise=False, noise_mean=0, noise_std=1):
 class RandomPattern:
     def __init__(self, size=None, pattern1=None, pattern2=None, period=1):
         if pattern1 == None and pattern2 == None:
-            if size == None:
-                raise ValueError("Whether patterns or the size must be given")
-            pattern1 = (torch.rand(size) > 0.5).type(torch.int8)
-            pattern2 = (torch.rand(size) > 0.5).type(torch.int8)
-        else:
-            pattern1 = torch.tensor(pattern1)
-            pattern2 = torch.tensor(pattern2)
+          if size == None:
+            raise ValueError("Whether patterns or the size must be given")
+          pattern1 = (torch.rand(size) > 0.5).type(torch.int8)
+          pattern2 = (torch.rand(size) > 0.5).type(torch.int8)
+        if not isinstance(pattern1, torch.Tensor):
+          pattern1 = torch.tensor(pattern1)
+        if not isinstance(pattern2, torch.Tensor):
+          pattern2 = torch.tensor(pattern2)
             
         self.pats = [pattern1, pattern2]
         self.period = period

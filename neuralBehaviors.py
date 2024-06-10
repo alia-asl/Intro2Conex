@@ -93,15 +93,12 @@ class LIFBehavior(Behavior):
       raise AttributeError("An input behavior must set neurons input (`I`) before calling LIF")
     firing = neurons.v >= neurons.Uthresh
     atPeak = neurons.v >= neurons.Upeak
-    neurons.spikes = atPeak.byte()
-    neurons.v[atPeak] = neurons.Ureset[atPeak] # reset
-    neurons.Tref[atPeak] = self.Tref
     if self.adaptive:
       neurons.w[atPeak] += (self.b * self.dt)
 
     # avoid decreasing voltage if threshold passed
-    if hasattr(neurons, "proximal_input"):
-      neurons.I += neurons.proximal_input.squeeze()
+    # if neurons.size >= 2:
+    #   print(f"I = {neurons.I}")
     du = self.R * neurons.I # get the input
     neurons.I = neurons.vector(0) # reset input
     if self.leak:
@@ -120,12 +117,21 @@ class LIFBehavior(Behavior):
     neurons.v = torch.clamp(neurons.v, max=neurons.Upeak, min=neurons.vector(-75)) # avoid super rapid growth
     # neurons.v[neurons.Tref > 0] -= du[neurons.Tref > 0] # and decrease for rest of them?
     neurons.Tref = torch.clamp(neurons.Tref - 1, min=0)
+    # if neurons.size >= 2:
+    #   print(f"Neuron V = {neurons.v}")
+    #   print(f"\033[94mSpikes: {neurons.spikes}\033[0m")
+
+class FireBehavior(Behavior):
+  def forward(self, neurons:NeuronGroup):
+    atPeak = neurons.v >= neurons.Upeak
+    neurons.spikes = atPeak.byte()
+    neurons.v[atPeak] = neurons.Ureset[atPeak] # reset
     
     
     
 
 class InputBehavior(Behavior):
-  def __init__(self, func=None, verbose=False, **func_args):
+  def __init__(self, func=None, isForceSpike=False, verbose=False, **func_args):
     """
     Parameters:
     -----
@@ -134,17 +140,22 @@ class InputBehavior(Behavior):
 
     `func_args`: you can pass your function args
     """
-    super().__init__(func=func, verbose=verbose, func_args=func_args)
+    super().__init__(func=func, isForceSpike=isForceSpike, verbose=verbose, func_args=func_args)
   def initialize(self, neurons:NeuronGroup):
     self.func = self.parameter('func', lambda t, d: neurons.vector(0))
     self.func_args = self.parameter('func_args', None)
     self.verbose:int = self.parameter('verbose', None)
+    self.isForceSpike:bool = self.parameter('isForceSpike', None)
     neurons.I = neurons.vector(0)
+    neurons.spikes = neurons.vector(0)
     
     
   def forward(self, neurons:NeuronGroup):
     deltai = self.func(neurons.network.iteration, neurons.size, **self.func_args)
-    neurons.I += deltai
+    if self.isForceSpike:
+      neurons.spikes = deltai
+    else:
+      neurons.I += deltai
 
 class ResetIBehavior(Behavior):
   def forward(self, neurons:NeuronGroup):
