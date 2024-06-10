@@ -55,7 +55,7 @@ class LIFBehavior(Behavior):
     self.func = self.parameter('func', None)
     self.adaptive = self.parameter('adaptive', None)
     neurons.Urest = neurons.vector(self.parameter('Urest', None))
-    neurons.Uthresh = neurons.vector(self.parameter('Uthresh', None))
+    neurons.Uthresh = neurons.threshold = neurons.vector(self.parameter('Uthresh', None))
     neurons.Ureset = neurons.vector(self.parameter('Ureset', None))
     neurons.Upeak = neurons.vector(self.parameter('Upeak', None))
     variation = self.parameter('variation', None)
@@ -127,7 +127,7 @@ class FireBehavior(Behavior):
     neurons.spikes = atPeak.byte()
     neurons.v[atPeak] = neurons.Ureset[atPeak] # reset
     
-    
+
     
 
 class InputBehavior(Behavior):
@@ -243,6 +243,38 @@ class LateralInhibition(Behavior):
     neurons.I += anti_spikes * self.alpha
     return super().forward(neurons)
 
+class KWTABehavior(Behavior):
+    """
+    KWTA behavior of spiking neurons:
+
+    if v >= threshold then v = v_reset and all other spiked neurons are inhibited.
+
+    Note: Population should be built by NeuronDimension.
+    and firing behavior should be added too.
+
+    Args:
+        k (int): number of winners.
+        dimension (int, optional): K-WTA on specific dimension. defaults to None.
+    """
+
+    def __init__(self, k:int):
+      super().__init__(k=k)
+
+    def initialize(self, neurons:NeuronGroup):
+      self.k:int = self.parameter("k", None, required=True)
+        
+    def forward(self, neurons:NeuronGroup):
+      will_spike:torch.Tensor = neurons.v >= neurons.Upeak
+      v_values = neurons.v
+
+      if will_spike.sum() <= self.k:
+        return
+
+      _, k_winners_indices = torch.topk(v_values, self.k)
+      print(f"Winners: {k_winners_indices}")
+
+      
+      neurons.v[k_winners_indices] = neurons.Ureset[k_winners_indices]
 
     
     
