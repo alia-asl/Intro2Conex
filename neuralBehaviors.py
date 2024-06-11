@@ -271,8 +271,7 @@ class KWTABehavior(Behavior):
         return
 
       _, k_winners_indices = torch.topk(v_values, self.k)
-      print(f"Winners: {k_winners_indices}")
-
+      
       
       neurons.v[k_winners_indices] = neurons.Ureset[k_winners_indices]
 

@@ -51,29 +51,26 @@ def sin_input(t, dim, step=1/6, amp=20, noise=False, noise_mean=0, noise_std=1):
   return ans
 
 class RandomPattern:
-    def __init__(self, size=None, pattern1=None, pattern2=None, period=1):
-        if pattern1 == None and pattern2 == None:
-          if size == None:
-            raise ValueError("Whether patterns or the size must be given")
-          pattern1 = (torch.rand(size) > 0.5).type(torch.int8)
-          pattern2 = (torch.rand(size) > 0.5).type(torch.int8)
-        if not isinstance(pattern1, torch.Tensor):
-          pattern1 = torch.tensor(pattern1)
-        if not isinstance(pattern2, torch.Tensor):
-          pattern2 = torch.tensor(pattern2)
-            
-        self.pats = [pattern1, pattern2]
-        self.period = period
-            
+  def __init__(self, size=None, num_pat:int=None, patterns:list=[], period=1):
+    if len(patterns) == 0:
+      if size == None and num_pat:
+        raise ValueError("Whether patterns or the size must be given")
+      patterns = [(torch.rand(size) > 0.5).type(torch.int8) for _ in range(num_pat)]
+
+    for i in range(len(patterns)):  
+      if not isinstance(patterns[i], torch.Tensor):
+        patterns[i] = torch.tensor(patterns[i])
         
+    self.pats = patterns
+    self.period = period
+          
+      
 
-    def __len__(self) -> int:
-        return len(self.pats)
+  def __len__(self) -> int:
+    return len(self.pats)
 
-    def __getitem__(self, index) -> tuple[torch.Tensor, int]:
-        patInd = (index // self.period) % 2
-        if index == 0:
-            print()
-        return self.pats[patInd].squeeze(), patInd
-    def __call__(self, t, dim) -> torch.Tensor:
-       return self.__getitem__(t)[0]
+  def __getitem__(self, index) -> tuple[torch.Tensor, int]:
+    patInd = (index // self.period) % len(self.pats)
+    return self.pats[patInd].squeeze(), patInd
+  def __call__(self, t, dim) -> torch.Tensor:
+    return self.__getitem__(t)[0]
