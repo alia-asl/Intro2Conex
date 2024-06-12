@@ -289,3 +289,30 @@ class ConductanceBehavior(DeltaBehavior):
             syn.dst.inp -= output
         self.last_spike_t += 1
         
+class WeightNormalizationBehavior(Behavior):
+    """
+    This Behavior normalize weights in order to assure each destination neuron has
+    sum of its weight equal to ``norm``. Supporting `Simple`, `Local2d`, 'Conv2d'.
+
+    Args:
+        norm (int): Desired sum of weights for each neuron.
+    """
+
+    def __init__(self, *args, mean=1, std=None, **kwargs):
+        super().__init__(*args, mean=mean, std=std, **kwargs)
+
+    def initialize(self, synapse):
+        self.mean = self.parameter("mean", 1)
+        self.std = self.parameter("std", None)
+        self.forward(synapse=synapse)
+
+    def forward(self, synapse):
+        weights_avg = synapse.weights.mean(dim=0)
+        weights_std = synapse.weights.std(dim=0)
+        w1 = synapse.weights
+        synapse.weights = (synapse.weights - weights_avg) / weights_std
+        w2 = synapse.weights
+        synapse.weights = synapse.weights * self.std + self.mean
+        w3 = synapse.weights
+        if synapse.weights.isnan().any():
+            print(f"init:\n{w1}\nthen\n{w2}\nEnd:\n{w3}")
